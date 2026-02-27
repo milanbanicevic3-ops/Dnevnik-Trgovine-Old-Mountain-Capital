@@ -12,7 +12,7 @@
      ═══════════════════════════════════════════════════════════ -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   // ══════════════════════════════════════════════════
   // PASTE YOUR FIREBASE CONFIG HERE — STEP 6 OF SETUP
@@ -41,12 +41,12 @@
       await deleteDoc(doc(db, 'trades', String(id)));
     },
     async getAllTrades() {
-      const snap = await getDocs(query(collection(db, 'trades'), orderBy('date', 'desc')));
-      return snap.docs.map(d => d.data());
+      const snap = await getDocs(collection(db, 'trades'));
+      return snap.docs.map(d => d.data()).sort((a,b) => b.date.localeCompare(a.date));
     },
     onTradesChange(callback) {
-      return onSnapshot(query(collection(db, 'trades'), orderBy('date', 'desc')), snap => {
-        callback(snap.docs.map(d => d.data()));
+      return onSnapshot(collection(db, 'trades'), snap => {
+        callback(snap.docs.map(d => d.data()).sort((a,b) => b.date.localeCompare(a.date)));
       });
     },
 
