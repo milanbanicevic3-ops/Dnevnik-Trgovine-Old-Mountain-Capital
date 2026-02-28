@@ -462,7 +462,7 @@
   </div>
   <div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap">
-      <table><thead><tr><th>Date</th><th>Strategy</th><th>Pair</th><th>Dir</th><th>Entry</th><th>Exit</th><th>Score</th><th>R</th><th>P&L</th><th>Grade</th><th>Notes</th><th>Del</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Strategy</th><th>Pair</th><th>Dir</th><th>Entry</th><th>Exit</th><th>Score</th><th>R</th><th>P&L</th><th>Grade</th><th>Notes</th><th>Edit</th><th>Del</th></tr></thead>
       <tbody id="my-journal-tbody"></tbody></table>
     </div>
   </div>
@@ -488,7 +488,7 @@
   </div>
   <div class="card" style="padding:0;overflow:hidden;">
     <div class="table-wrap">
-      <table><thead><tr><th>Date</th><th>Trader</th><th>Strategy</th><th>Pair</th><th>Dir</th><th>Score</th><th>R</th><th>P&L</th><th>Grade</th><th>Notes</th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Trader</th><th>Strategy</th><th>Pair</th><th>Dir</th><th>Score</th><th>R</th><th>P&L</th><th>Grade</th><th>Notes</th><th>Edit</th></tr></thead>
       <tbody id="team-journal-tbody"></tbody></table>
     </div>
   </div>
@@ -553,6 +553,56 @@
       <button class="btn btn-outline" onclick="closeStrategyModal()">Cancel</button>
     </div>
     <input type="hidden" id="s-edit-id" value="">
+  </div>
+</div>
+
+<!-- MODAL: Edit Trade -->
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal" style="max-width:720px;">
+    <div class="modal-header">
+      <div class="modal-title">EDIT <span style="color:var(--accent3);">TRADE</span></div>
+      <div class="modal-close" onclick="closeEditModal()">✕</div>
+    </div>
+    <div class="grid-2" style="gap:12px;">
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="form-grid form-grid-2" style="gap:10px;">
+          <div class="field"><label>Date</label><input type="date" id="e-date"></div>
+          <div class="field"><label>Session</label><select id="e-session"><option value="">Select...</option><option>London (08201312 GMT)</option><option>NY Overlap (13201316 GMT)</option><option>Asian Session</option><option>Other</option></select></div>
+          <div class="field"><label>Strategy</label><select id="e-strategy"></select></div>
+          <div class="field"><label>Pair</label><select id="e-pair"><option value="">Select...</option><option>EUR/USD</option><option>GBP/USD</option><option>USD/JPY</option><option>AUD/USD</option><option>USD/CAD</option><option>USD/CHF</option><option>NZD/USD</option><option>EUR/GBP</option><option>EUR/JPY</option><option>GBP/JPY</option><option>XAU/USD</option><option>XAG/USD</option><option>BTC/USD</option><option>Other</option></select></div>
+          <div class="field"><label>Direction</label><select id="e-direction"><option value="">Select...</option><option value="BUY">BUY (Long)</option><option value="SELL">SELL (Short)</option></select></div>
+          <div class="field"><label>Entry Price</label><input type="number" step="0.00001" id="e-entry"></div>
+          <div class="field"><label>Exit Price</label><input type="number" step="0.00001" id="e-exit"></div>
+          <div class="field"><label>Stop Loss</label><input type="number" step="0.00001" id="e-sl"></div>
+          <div class="field"><label>Take Profit</label><input type="number" step="0.00001" id="e-tp"></div>
+          <div class="field"><label>Lot Size</label><input type="number" step="0.01" id="e-lots"></div>
+          <div class="field"><label>P&L ($)</label><input type="number" step="0.01" id="e-pnl"></div>
+          <div class="field"><label>R Multiple</label><input type="number" step="0.01" id="e-rr"></div>
+          <div class="field"><label>Pre-Trade Score</label><input type="number" min="0" max="100" id="e-score"></div>
+        </div>
+        <div class="field"><label>Trade Grade</label>
+          <div class="grade-pills" id="edit-grade-selector">
+            <div class="grade-pill gp-aplus" onclick="selectEditGrade('A+',this)">A+</div>
+            <div class="grade-pill gp-a" onclick="selectEditGrade('A',this)">A</div>
+            <div class="grade-pill gp-b" onclick="selectEditGrade('B',this)">B</div>
+            <div class="grade-pill gp-c" onclick="selectEditGrade('C',this)">C</div>
+            <div class="grade-pill gp-f" onclick="selectEditGrade('F',this)">F</div>
+          </div>
+          <input type="hidden" id="e-grade" value="">
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:10px;">
+        <div class="field"><label>Setup Description</label><textarea id="e-setup" style="min-height:80px;"></textarea></div>
+        <div class="field"><label>What Worked</label><textarea id="e-worked" style="min-height:80px;"></textarea></div>
+        <div class="field"><label>Mistakes</label><textarea id="e-mistakes" style="min-height:80px;"></textarea></div>
+        <div class="note" id="edit-trade-meta"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn btn-primary" style="flex:1;justify-content:center;" onclick="saveEditedTrade()">💾 Save Changes</button>
+      <button class="btn btn-outline" onclick="closeEditModal()">Cancel</button>
+    </div>
+    <input type="hidden" id="e-trade-id" value="">
   </div>
 </div>
 
@@ -945,7 +995,7 @@ function renderTeamJournal() {
     const isWin=t.rMultiple!==null?t.rMultiple>0:null;
     const rVal=t.rMultiple!==null?(t.rMultiple>0?'+':'')+t.rMultiple+'R':'—';
     const pnlVal=t.pnl!==null?(t.pnl>0?'+':'')+'$'+t.pnl.toFixed(2):'—';
-    return`<tr><td class="mono">${t.date}</td><td class="td-trader">${t.trader}</td><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent3);">${t.strategyName||'—'}</td><td class="td-pair">${t.pair}</td><td><span class="tag ${t.direction==='BUY'?'tag-green':'tag-red'}">${t.direction}</span></td><td class="mono">${t.score!==null?t.score:'—'}</td><td class="${isWin===true?'td-win':isWin===false?'td-loss':'mono'}">${rVal}</td><td class="${t.pnl>0?'td-win':t.pnl<0?'td-loss':'mono'}">${pnlVal}</td><td>${t.grade?`<span class="tag ${gradeColor(t.grade)}">${t.grade}</span>`:'—'}</td><td>${notesBtn(t,true)}</td></tr>`;
+    return`<tr><td class="mono">${t.date}</td><td class="td-trader">${t.trader}</td><td style="font-family:'DM Mono',monospace;font-size:10px;color:var(--accent3);">${t.strategyName||'—'}</td><td class="td-pair">${t.pair}</td><td><span class="tag ${t.direction==='BUY'?'tag-green':'tag-red'}">${t.direction}</span></td><td class="mono">${t.score!==null?t.score:'—'}</td><td class="${isWin===true?'td-win':isWin===false?'td-loss':'mono'}">${rVal}</td><td class="${t.pnl>0?'td-win':t.pnl<0?'td-loss':'mono'}">${pnlVal}</td><td>${t.grade?`<span class="tag ${gradeColor(t.grade)}">${t.grade}</span>`:'—'}</td><td>${notesBtn(t,true)}</td><td><button onclick=\"openEditModal('${t.id}')\" style=\"padding:2px 7px;font-family:'DM Mono',monospace;font-size:9px;border-radius:2px;cursor:pointer;border:1px solid rgba(0,212,170,0.2);color:var(--accent);background:transparent;text-transform:uppercase;\">Edit</button></td></tr>`;
   }).join('');
 }
 
@@ -1044,6 +1094,89 @@ async function saveStrategy() {
   const editId=document.getElementById('s-edit-id').value;
   const strategy={id:editId||'strat-'+Date.now(),name,desc,minScore,criteria};
   try{await window.DB.saveStrategy(strategy);closeStrategyModal();}catch(e){alert('Error saving strategy.');console.error(e);}
+}
+
+// ══════════════════════ EDIT TRADE ══════════════════════
+function openEditModal(id) {
+  const t = allTrades.find(t => String(t.id) === String(id));
+  if (!t) return;
+  // Populate strategy dropdown
+  const eStrat = document.getElementById("e-strategy");
+  eStrat.innerHTML = "<option value="">No strategy</option>" + allStrategies.map(s => `<option value="${s.id}" ${s.id === t.strategyId ? "selected" : ""}>${s.name}</option>`).join("");
+  // Populate all fields
+  document.getElementById("e-trade-id").value = t.id;
+  document.getElementById("e-date").value = t.date || "";
+  document.getElementById("e-session").value = t.session || "";
+  document.getElementById("e-pair").value = t.pair || "";
+  document.getElementById("e-direction").value = t.direction || "";
+  document.getElementById("e-entry").value = t.entry || "";
+  document.getElementById("e-exit").value = t.exit || "";
+  document.getElementById("e-sl").value = t.sl || "";
+  document.getElementById("e-tp").value = t.tp || "";
+  document.getElementById("e-lots").value = t.lots || "";
+  document.getElementById("e-pnl").value = t.pnl || "";
+  document.getElementById("e-rr").value = t.rMultiple || "";
+  document.getElementById("e-score").value = t.score || "";
+  document.getElementById("e-setup").value = t.setup || "";
+  document.getElementById("e-worked").value = t.worked || "";
+  document.getElementById("e-mistakes").value = t.mistakes || "";
+  // Grade
+  document.getElementById("e-grade").value = t.grade || "";
+  document.querySelectorAll("#edit-grade-selector .grade-pill").forEach(p => p.classList.remove("active"));
+  if (t.grade) {
+    const map = {"A+":"aplus","A":"a","B":"b","C":"c","F":"f"};
+    const pill = document.querySelector(`#edit-grade-selector .gp-${map[t.grade]}`);
+    if (pill) pill.classList.add("active");
+  }
+  // Meta info
+  document.getElementById("edit-trade-meta").textContent = `Trader: ${t.trader} · Saved: ${t.savedAt ? new Date(t.savedAt).toLocaleDateString() : "unknown"}`;
+  document.getElementById("edit-modal").classList.add("open");
+}
+
+function closeEditModal() {
+  document.getElementById("edit-modal").classList.remove("open");
+}
+
+function selectEditGrade(grade, el) {
+  document.querySelectorAll("#edit-grade-selector .grade-pill").forEach(p => p.classList.remove("active"));
+  el.classList.add("active");
+  document.getElementById("e-grade").value = grade;
+}
+
+async function saveEditedTrade() {
+  const id = document.getElementById("e-trade-id").value;
+  const original = allTrades.find(t => String(t.id) === String(id));
+  if (!original) { alert("Trade not found."); return; }
+  const stratId = document.getElementById("e-strategy").value;
+  const strat = allStrategies.find(s => s.id === stratId);
+  const updated = {
+    ...original,
+    date: document.getElementById("e-date").value,
+    session: document.getElementById("e-session").value || null,
+    strategyId: stratId || null,
+    strategyName: strat ? strat.name : "Unknown",
+    pair: document.getElementById("e-pair").value,
+    direction: document.getElementById("e-direction").value,
+    entry: parseFloat(document.getElementById("e-entry").value) || original.entry,
+    exit: parseFloat(document.getElementById("e-exit").value) || original.exit,
+    sl: parseFloat(document.getElementById("e-sl").value) || null,
+    tp: parseFloat(document.getElementById("e-tp").value) || null,
+    lots: parseFloat(document.getElementById("e-lots").value) || null,
+    pnl: parseFloat(document.getElementById("e-pnl").value) || null,
+    rMultiple: parseFloat(document.getElementById("e-rr").value) || null,
+    score: parseInt(document.getElementById("e-score").value) || null,
+    grade: document.getElementById("e-grade").value || null,
+    setup: document.getElementById("e-setup").value || null,
+    worked: document.getElementById("e-worked").value || null,
+    mistakes: document.getElementById("e-mistakes").value || null,
+    editedAt: new Date().toISOString(),
+    editedBy: currentUser
+  };
+  try {
+    await window.DB.saveTrade(updated);
+    closeEditModal();
+    alert("✓ Trade updated.");
+  } catch(e) { alert("Error saving."); console.error(e); }
 }
 
 // ══════════════════════ RENDER ALL ══════════════════════
