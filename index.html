@@ -1160,26 +1160,78 @@ function openEditModal(id) {
 function closeEditModal() { document.getElementById('edit-modal').classList.remove('open'); }
 async function saveEdit() {
   var id = document.getElementById('e-id').value;
+  if (!id) { alert('No trade ID found. Please close and reopen the edit modal.'); return; }
   var orig = AT.find(function(x){return String(x.id)===String(id);});
-  if (!orig) { alert('Trade not found.'); return; }
-  var sid=document.getElementById('e-strat').value, st=AS.find(function(s){return s.id===sid;});
-  var pnl=parseFloat(document.getElementById('e-pnl').value), rr=parseFloat(document.getElementById('e-rr').value);
-  var ssUrl = orig.screenshotUrl;
+  if (!orig) { alert('Trade not found in local data. Try refreshing the page.'); return; }
+
+  var sid = document.getElementById('e-strat').value;
+  var st  = AS.find(function(s){return s.id===sid;});
+
+  var pnlRaw = document.getElementById('e-pnl').value;
+  var rrRaw  = document.getElementById('e-rr').value;
+  var pnl = pnlRaw !== '' ? parseFloat(pnlRaw) : null;
+  var rr  = rrRaw  !== '' ? parseFloat(rrRaw)  : null;
+
+  var entryRaw = document.getElementById('e-entry').value;
+  var exitRaw  = document.getElementById('e-exit').value;
+  var entry = entryRaw !== '' ? parseFloat(entryRaw) : orig.entry;
+  var exit  = exitRaw  !== '' ? parseFloat(exitRaw)  : orig.exit;
+
+  var slRaw   = document.getElementById('e-sl').value;
+  var tpRaw   = document.getElementById('e-tp').value;
+  var lotsRaw = document.getElementById('e-lots').value;
+  var scoreRaw= document.getElementById('e-score').value;
+
+  // Screenshot — only upload if a new file was selected
+  var ssUrl  = orig.screenshotUrl || null;
   var ssFile = document.getElementById('e-ss-file').files[0];
-  if (ssFile) { try { ssUrl = await window.DB.uploadScreenshot(orig.id, ssFile); } catch(e) { console.warn('Screenshot upload failed:', e); } }
+  if (ssFile) {
+    try {
+      ssUrl = await window.DB.uploadScreenshot(orig.id, ssFile);
+    } catch(e) {
+      console.warn('Screenshot upload failed:', e);
+      // Don't block save if screenshot fails
+    }
+  }
+
   var updated = Object.assign({}, orig, {
-    date:document.getElementById('e-date').value||orig.date, session:document.getElementById('e-session').value||null,
-    strategyId:sid||null, strategyName:st?st.name:'Unknown',
-    pair:document.getElementById('e-pair').value||orig.pair, direction:document.getElementById('e-dir').value||orig.direction,
-    entry:parseFloat(document.getElementById('e-entry').value)||orig.entry, exit:parseFloat(document.getElementById('e-exit').value)||orig.exit,
-    sl:parseFloat(document.getElementById('e-sl').value)||null, tp:parseFloat(document.getElementById('e-tp').value)||null,
-    lots:parseFloat(document.getElementById('e-lots').value)||null, pnl:isNaN(pnl)?null:pnl, rMultiple:isNaN(rr)?null:rr,
-    score:parseInt(document.getElementById('e-score').value)||null, grade:document.getElementById('e-grade').value||null,
-    exitType:document.getElementById('e-exit-type').value||null, setup:document.getElementById('e-setup').value||null,
-    worked:document.getElementById('e-worked').value||null, mistakes:document.getElementById('e-mistakes').value||null,
-    screenshotUrl:ssUrl, editedAt:new Date().toISOString(), editedBy:CU
+    date:        document.getElementById('e-date').value    || orig.date,
+    session:     document.getElementById('e-session').value || null,
+    strategyId:  sid  || null,
+    strategyName:st   ? st.name : (orig.strategyName || 'Unknown'),
+    pair:        document.getElementById('e-pair').value    || orig.pair,
+    direction:   document.getElementById('e-dir').value     || orig.direction,
+    entry:       entry,
+    exit:        exit,
+    sl:          slRaw    !== '' ? parseFloat(slRaw)    : null,
+    tp:          tpRaw    !== '' ? parseFloat(tpRaw)    : null,
+    lots:        lotsRaw  !== '' ? parseFloat(lotsRaw)  : null,
+    pnl:         pnl,
+    rMultiple:   rr,
+    score:       scoreRaw !== '' ? parseInt(scoreRaw)   : null,
+    grade:       document.getElementById('e-grade').value     || null,
+    exitType:    document.getElementById('e-exit-type').value || null,
+    setup:       document.getElementById('e-setup').value     || null,
+    worked:      document.getElementById('e-worked').value    || null,
+    mistakes:    document.getElementById('e-mistakes').value  || null,
+    screenshotUrl: ssUrl,
+    editedAt:    new Date().toISOString(),
+    editedBy:    CU
   });
-  try { await window.DB.saveTrade(updated); closeEditModal(); alert('Trade updated.'); } catch(e) { alert('Error saving.'); console.error(e); }
+
+  // Sanitize — remove undefined values which Firestore rejects
+  Object.keys(updated).forEach(function(k) {
+    if (updated[k] === undefined) delete updated[k];
+  });
+
+  try {
+    await window.DB.saveTrade(updated);
+    closeEditModal();
+    alert('Trade updated.');
+  } catch(e) {
+    alert('Error saving trade: ' + e.message);
+    console.error('saveEdit error:', e);
+  }
 }
 
 // ══ NOTES MODAL ══
