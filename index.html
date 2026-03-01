@@ -1341,17 +1341,26 @@ async function clearMyTrades(){if(!confirm('Delete ALL your trades?'))return; va
 
 // ══ ANALYTICS ══
 function updateAnalyticsTraderSelect() {
-  var traders=[CU];
+  var traders=[];
   AT.forEach(function(t){if(traders.indexOf(t.trader)<0) traders.push(t.trader);});
+  if(traders.indexOf(CU)<0) traders.unshift(CU);
   var el=document.getElementById('an-trader');
-  el.innerHTML=traders.map(function(t){return '<option value="'+t+'"'+(t===CU?' selected':'')+'>'+t+(t===CU?' (Me)':'')+'</option>';}).join('');
+  var cur=el.value; // preserve current selection
+  el.innerHTML='<option value="__all__">All Traders (Combined)</option>'+
+    traders.map(function(t){return '<option value="'+t+'"'+(t===CU&&!cur?' selected':t===cur?' selected':'')+'>'+t+(t===CU?' (Me)':'')+'</option>';}).join('');
+  if(cur) el.value=cur;
 }
 
 function renderAnalytics() {
   updateAnalyticsTraderSelect();
   var trader=document.getElementById('an-trader').value||CU;
-  var trades=AT.filter(function(t){return t.trader===trader&&t.rMultiple!==null;}).slice().sort(function(a,b){return a.date.localeCompare(b.date);});
-  document.getElementById('analytics-sub').textContent=trader+' · '+trades.length+' closed trades';
+  var trades;
+  if(trader==='__all__') {
+    trades=AT.filter(function(t){return t.rMultiple!==null;}).slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+  } else {
+    trades=AT.filter(function(t){return t.trader===trader&&t.rMultiple!==null;}).slice().sort(function(a,b){return a.date.localeCompare(b.date);});
+  }
+  document.getElementById('analytics-sub').textContent=(trader==='__all__'?'All Traders (Combined)':trader)+' · '+trades.length+' closed trades';
 
   // Equity curve data
   var cumR=0, peak=0, maxDD=0, netR=0;
@@ -1386,7 +1395,9 @@ function renderAnalytics() {
   });
 
   // Score vs Outcome scatter
-  var scored=AT.filter(function(t){return t.trader===trader&&t.rMultiple!==null&&t.score!==null;});
+  var scored=trader==='__all__'
+    ? AT.filter(function(t){return t.rMultiple!==null&&t.score!==null;})
+    : AT.filter(function(t){return t.trader===trader&&t.rMultiple!==null&&t.score!==null;});
   if (scChart) { scChart.destroy(); scChart=null; }
   var sctx=document.getElementById('score-chart').getContext('2d');
   var scatterData=scored.map(function(t){return {x:t.score,y:t.rMultiple};});
@@ -1408,7 +1419,8 @@ function renderAnalytics() {
 
   // Exit type analysis
   var em={'SL Hit':{w:0,t:0,r:0},'TP Hit':{w:0,t:0,r:0},'Manual Close':{w:0,t:0,r:0}};
-  AT.filter(function(t){return t.trader===trader&&t.rMultiple!==null&&t.exitType;}).forEach(function(t){em[t.exitType].t++;em[t.exitType].r+=t.rMultiple;if(t.rMultiple>0)em[t.exitType].w++;});
+  var exitSource=trader==='__all__'?AT:AT.filter(function(t){return t.trader===trader;});
+  exitSource.filter(function(t){return t.rMultiple!==null&&t.exitType;}).forEach(function(t){em[t.exitType].t++;em[t.exitType].r+=t.rMultiple;if(t.rMultiple>0)em[t.exitType].w++;});
   document.getElementById('exit-analysis').innerHTML=Object.keys(em).filter(function(k){return em[k].t>0;}).map(function(k){
     var d=em[k],wr=((d.w/d.t)*100).toFixed(0),avgR=(d.r/d.t).toFixed(2);
     var c=k==='SL Hit'?'var(--accent2)':k==='TP Hit'?'var(--positive)':'var(--accent3)';
