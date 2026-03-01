@@ -7,11 +7,10 @@
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
-<!-- FIREBASE -->
+<!-- FIREBASE — Firestore core (always loads) -->
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-  import { getStorage, ref, uploadBytes, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+  import { getFirestore, collection, doc, setDoc, getDocs, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
   const firebaseConfig = {
     apiKey: "AIzaSyAhmSqTXYauzpaZ5Ui4yGy_d4ztbN9q1jQ",
@@ -22,38 +21,66 @@
     appId: "1:345818392985:web:69eaa0ce2300326a55cb08"
   };
 
-  const app = initializeApp(firebaseConfig);
-  const db  = getFirestore(app);
-  const storage = getStorage(app);
+  try {
+    const app = initializeApp(firebaseConfig);
+    const db  = getFirestore(app);
 
-  window.DB = {
-    async saveTrade(trade)      { await setDoc(doc(db,'trades',String(trade.id)), trade); },
-    async deleteTrade(id)       { await deleteDoc(doc(db,'trades',String(id))); },
-    async getAllTrades()         { const s=await getDocs(collection(db,'trades')); return s.docs.map(d=>d.data()).sort((a,b)=>b.date.localeCompare(a.date)); },
-    onTradesChange(cb)          { return onSnapshot(collection(db,'trades'), s=>cb(s.docs.map(d=>d.data()).sort((a,b)=>b.date.localeCompare(a.date)))); },
-    async saveStrategy(st)      { await setDoc(doc(db,'strategies',st.id), st); },
-    async deleteStrategy(id)    { await deleteDoc(doc(db,'strategies',id)); },
-    async getAllStrategies()     { const s=await getDocs(collection(db,'strategies')); return s.docs.map(d=>d.data()); },
-    onStrategiesChange(cb)      { return onSnapshot(collection(db,'strategies'), s=>cb(s.docs.map(d=>d.data()))); },
-    async saveTrader(name)      { await setDoc(doc(db,'traders',name),{name,joinedAt:new Date().toISOString()}); },
-    async deleteTrader(name)    { await deleteDoc(doc(db,'traders',name)); },
-    async getAllTraders()        { const s=await getDocs(collection(db,'traders')); return s.docs.map(d=>d.data().name); },
-    onTradersChange(cb)         { return onSnapshot(collection(db,'traders'), s=>cb(s.docs.map(d=>d.data().name))); },
-    async saveReview(review)    { await setDoc(doc(db,'reviews',review.id), review); },
-    async getAllReviews()        { const s=await getDocs(collection(db,'reviews')); return s.docs.map(d=>d.data()); },
-    onReviewsChange(cb)         { return onSnapshot(collection(db,'reviews'), s=>cb(s.docs.map(d=>d.data()))); },
-    async uploadScreenshot(tradeId, file) {
-      const r = ref(storage, 'screenshots/' + tradeId + '/' + file.name);
-      await uploadBytes(r, file);
-      return await getDownloadURL(r);
-    },
-    async deleteScreenshot(path) {
-      try { await deleteObject(ref(storage, path)); } catch(e) { console.warn('Delete screenshot:', e); }
-    }
+    window.DB = {
+      async saveTrade(trade)    { await setDoc(doc(db,'trades',String(trade.id)), trade); },
+      async deleteTrade(id)     { await deleteDoc(doc(db,'trades',String(id))); },
+      async getAllTrades()       { const s=await getDocs(collection(db,'trades')); return s.docs.map(d=>d.data()).sort((a,b)=>b.date.localeCompare(a.date)); },
+      onTradesChange(cb)        { return onSnapshot(collection(db,'trades'), s=>cb(s.docs.map(d=>d.data()).sort((a,b)=>b.date.localeCompare(a.date)))); },
+      async saveStrategy(st)    { await setDoc(doc(db,'strategies',st.id), st); },
+      async deleteStrategy(id)  { await deleteDoc(doc(db,'strategies',id)); },
+      async getAllStrategies()   { const s=await getDocs(collection(db,'strategies')); return s.docs.map(d=>d.data()); },
+      onStrategiesChange(cb)    { return onSnapshot(collection(db,'strategies'), s=>cb(s.docs.map(d=>d.data()))); },
+      async saveTrader(name)    { await setDoc(doc(db,'traders',name),{name,joinedAt:new Date().toISOString()}); },
+      async deleteTrader(name)  { await deleteDoc(doc(db,'traders',name)); },
+      async getAllTraders()      { const s=await getDocs(collection(db,'traders')); return s.docs.map(d=>d.data().name); },
+      onTradersChange(cb)       { return onSnapshot(collection(db,'traders'), s=>cb(s.docs.map(d=>d.data().name))); },
+      async saveReview(review)  { await setDoc(doc(db,'reviews',review.id), review); },
+      async getAllReviews()      { const s=await getDocs(collection(db,'reviews')); return s.docs.map(d=>d.data()); },
+      onReviewsChange(cb)       { return onSnapshot(collection(db,'reviews'), s=>cb(s.docs.map(d=>d.data()))); },
+      // Screenshot stub — replaced when Storage module loads below
+      async uploadScreenshot(tradeId, file) { throw new Error('Storage not yet loaded'); },
+      async deleteScreenshot(path) { console.warn('Storage not available'); }
+    };
+
+    window.firebaseReady = true;
+    document.dispatchEvent(new Event('firebaseReady'));
+    console.log('Firebase Firestore ready');
+  } catch(e) {
+    console.error('Firebase init failed:', e);
+    document.getElementById('loading-msg').textContent = 'Firebase init failed: ' + e.message;
+  }
+</script>
+
+<!-- CLOUDINARY — screenshot uploads, free tier, no server required -->
+<script>
+  var CLOUDINARY_CLOUD  = 'dpi6yd0vh';
+  var CLOUDINARY_PRESET = 'Old Mountain Trades';
+
+  window.DB.uploadScreenshot = async function(tradeId, file) {
+    var formData = new FormData();
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_PRESET);
+    formData.append('folder', 'omc_trades');
+    formData.append('public_id', 'trade_' + tradeId);
+    var res = await fetch(
+      'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload',
+      { method: 'POST', body: formData }
+    );
+    if (!res.ok) throw new Error('Cloudinary upload failed: ' + res.status);
+    var data = await res.json();
+    return data.secure_url;
   };
 
-  window.firebaseReady = true;
-  document.dispatchEvent(new Event('firebaseReady'));
+  window.DB.deleteScreenshot = async function(url) {
+    console.log('Screenshot removal skipped (requires server-side auth)');
+  };
+
+  window.storageReady = true;
+  console.log('Cloudinary ready');
 </script>
 
 <style>
