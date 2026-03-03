@@ -65,13 +65,15 @@
     formData.append('file', file);
     formData.append('upload_preset', CLOUDINARY_PRESET);
     formData.append('folder', 'omc_trades');
-    formData.append('public_id', 'trade_' + tradeId);
+    // No public_id override — let Cloudinary auto-generate to avoid conflicts
     var res = await fetch(
       'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload',
       { method: 'POST', body: formData }
     );
-    if (!res.ok) throw new Error('Cloudinary upload failed: ' + res.status);
     var data = await res.json();
+    if (data.error) throw new Error('Cloudinary error: ' + data.error.message);
+    if (!data.secure_url) throw new Error('No URL returned from Cloudinary');
+    console.log('Screenshot uploaded:', data.secure_url);
     return data.secure_url;
   };
 
@@ -1102,7 +1104,18 @@ async function saveTrade() {
   var ssUrl = null;
   var ssFile = document.getElementById('t-ss-file').files[0];
   if (ssFile) {
-    try { ssUrl = await window.DB.uploadScreenshot(tradeId, ssFile); } catch(e) { console.warn('Screenshot upload failed:', e); }
+    try {
+      var saveBtn = document.querySelector('#page-new .bp');
+      if (saveBtn) { saveBtn.textContent = 'Uploading screenshot...'; saveBtn.disabled = true; }
+      ssUrl = await window.DB.uploadScreenshot(tradeId, ssFile);
+      console.log('Screenshot URL:', ssUrl);
+    } catch(e) {
+      alert('Screenshot upload failed: ' + e.message + '\nTrade will be saved without screenshot.');
+      console.error('Screenshot upload error:', e);
+    } finally {
+      var saveBtn = document.querySelector('#page-new .bp');
+      if (saveBtn) { saveBtn.textContent = 'Save Trade'; saveBtn.disabled = false; }
+    }
   }
   var trade = {
     id: tradeId, trader:CU, date:date, pair:pair, direction:dir,
