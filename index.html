@@ -41,9 +41,24 @@
       async saveReview(review)  { await setDoc(doc(db,'reviews',review.id), review); },
       async getAllReviews()      { const s=await getDocs(collection(db,'reviews')); return s.docs.map(d=>d.data()); },
       onReviewsChange(cb)       { return onSnapshot(collection(db,'reviews'), s=>cb(s.docs.map(d=>d.data()))); },
-      // Screenshot stub — replaced when Storage module loads below
-      async uploadScreenshot(tradeId, file) { throw new Error('Storage not yet loaded'); },
-      async deleteScreenshot(path) { console.warn('Storage not available'); }
+      async uploadScreenshot(tradeId, file) {
+        var formData = new FormData();
+        formData.append('file', file);
+        formData.append('upload_preset', 'Old Mountain Trades');
+        formData.append('folder', 'omc_trades');
+        var res = await fetch(
+          'https://api.cloudinary.com/v1_1/dpi6yd0vh/image/upload',
+          { method: 'POST', body: formData }
+        );
+        var data = await res.json();
+        if (data.error) throw new Error('Cloudinary: ' + data.error.message);
+        if (!data.secure_url) throw new Error('Cloudinary returned no URL');
+        console.log('Screenshot uploaded OK:', data.secure_url);
+        return data.secure_url;
+      },
+      async deleteScreenshot(url) {
+        console.log('Screenshot deletion skipped (requires server-side auth)');
+      }
     };
 
     window.firebaseReady = true;
@@ -55,43 +70,7 @@
   }
 </script>
 
-<!-- CLOUDINARY — screenshot uploads, free tier, no server required -->
-<script>
-  var CLOUDINARY_CLOUD  = 'dpi6yd0vh';
-  var CLOUDINARY_PRESET = 'Old Mountain Trades';
-
-  function attachCloudinary() {
-    window.DB.uploadScreenshot = async function(tradeId, file) {
-      var formData = new FormData();
-      formData.append('file', file);
-      formData.append('upload_preset', CLOUDINARY_PRESET);
-      formData.append('folder', 'omc_trades');
-      var res = await fetch(
-        'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload',
-        { method: 'POST', body: formData }
-      );
-      var data = await res.json();
-      if (data.error) throw new Error('Cloudinary error: ' + data.error.message);
-      if (!data.secure_url) throw new Error('No URL returned from Cloudinary');
-      console.log('Screenshot uploaded:', data.secure_url);
-      return data.secure_url;
-    };
-
-    window.DB.deleteScreenshot = async function(url) {
-      console.log('Screenshot removal skipped (requires server-side auth)');
-    };
-
-    window.storageReady = true;
-    console.log('Cloudinary ready');
-  }
-
-  // Wait for Firebase to set up window.DB before attaching
-  if (window.DB) {
-    attachCloudinary();
-  } else {
-    document.addEventListener('firebaseReady', attachCloudinary, { once: true });
-  }
-</script>
+<!-- Cloudinary upload built into Firebase DB object above -->
 
 <style>
 :root {
