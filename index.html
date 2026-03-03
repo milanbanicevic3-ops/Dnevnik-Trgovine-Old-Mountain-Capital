@@ -60,29 +60,37 @@
   var CLOUDINARY_CLOUD  = 'dpi6yd0vh';
   var CLOUDINARY_PRESET = 'Old Mountain Trades';
 
-  window.DB.uploadScreenshot = async function(tradeId, file) {
-    var formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_PRESET);
-    formData.append('folder', 'omc_trades');
-    // No public_id override — let Cloudinary auto-generate to avoid conflicts
-    var res = await fetch(
-      'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload',
-      { method: 'POST', body: formData }
-    );
-    var data = await res.json();
-    if (data.error) throw new Error('Cloudinary error: ' + data.error.message);
-    if (!data.secure_url) throw new Error('No URL returned from Cloudinary');
-    console.log('Screenshot uploaded:', data.secure_url);
-    return data.secure_url;
-  };
+  function attachCloudinary() {
+    window.DB.uploadScreenshot = async function(tradeId, file) {
+      var formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+      formData.append('folder', 'omc_trades');
+      var res = await fetch(
+        'https://api.cloudinary.com/v1_1/' + CLOUDINARY_CLOUD + '/image/upload',
+        { method: 'POST', body: formData }
+      );
+      var data = await res.json();
+      if (data.error) throw new Error('Cloudinary error: ' + data.error.message);
+      if (!data.secure_url) throw new Error('No URL returned from Cloudinary');
+      console.log('Screenshot uploaded:', data.secure_url);
+      return data.secure_url;
+    };
 
-  window.DB.deleteScreenshot = async function(url) {
-    console.log('Screenshot removal skipped (requires server-side auth)');
-  };
+    window.DB.deleteScreenshot = async function(url) {
+      console.log('Screenshot removal skipped (requires server-side auth)');
+    };
 
-  window.storageReady = true;
-  console.log('Cloudinary ready');
+    window.storageReady = true;
+    console.log('Cloudinary ready');
+  }
+
+  // Wait for Firebase to set up window.DB before attaching
+  if (window.DB) {
+    attachCloudinary();
+  } else {
+    document.addEventListener('firebaseReady', attachCloudinary, { once: true });
+  }
 </script>
 
 <style>
